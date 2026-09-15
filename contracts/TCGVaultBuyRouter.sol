@@ -28,7 +28,7 @@ error NoFeesToClaim();
 /**
  * @title TCGVaultBuyRouter
  * @notice **Routeur ON (portail / USDC)** — achat et vente du $TCGV contre USDC. Frais distincts du **routeur OFF** (taxes paire en TCGV sur `TCGVaultToken`).
- * @dev **Achat :** **5%** de l’USDC entrant (**3%** vault, **2%** structure), le reste est swappé en TCGV ; pas de burn TCGV. Puis `recordBuyAndMintCashback` sur le token pour **$TCGNEXUS** (**30%** prévente / **10%** standard du montant TCGV reçu — whitepaper §6).
+ * @dev **Achat :** **5%** de l’USDC entrant (**3%** vault, **2%** structure), le reste est swappé en TCGV ; pas de burn TCGV. Puis `recordBuyAndMintCashback` sur le token pour **$TCGNEXUS** (**30%** prévente / **3%** standard du montant TCGV reçu — whitepaper §6).
  * @dev **Vente :** **4%** sur l’USDC reçu après swap (**1,5%** vault, **1%** liquidité, **1%** communauté, **0,5%** structure) ; pas de burn TCGV en entrée.
  * @dev **Parrainage :** si `referralToken` (TCGR) est configuré, `processValidatedBuy` peut créditer le parrain (**0,5%** du buy validé, whitepaper).
  * @dev Exclu des frais sur `TCGVaultToken` (évite double taxation avec le chemin paire). Taux cashback = `TCGVaultToken.presaleActive` / constantes du token.

@@ -33,7 +33,7 @@ Soulbound governance / membership token.
 - No generic owner mint path
 
 ### TCGVaultBuyRouter.sol
-**Routeur ON (portail USDC).** Default **5%** of USDC in (**300** + **200** + **0** bps → vault / marketing / community); remainder swapped; **100%** of TCGV out to the buyer (no TCGV burn). $TCGNEXUS via `recordBuyAndMintCashback` (30% / 10% of **TCGV** received). Transient storage avoids double-taxing on `TCGVaultToken`.
+**Routeur ON (portail USDC).** Default **5%** of USDC in (**300** + **200** + **0** bps → vault / marketing / community); remainder swapped; **100%** of TCGV out to the buyer (no TCGV burn). $TCGNEXUS via `recordBuyAndMintCashback` (30% / 3% of **TCGV** received). Transient storage avoids double-taxing on `TCGVaultToken`.
 
 **Sell (`sellTCGVForUSDC`):** default **4%** of USDC out (`sellTaxBp = 400`), split **3750 / 2500 / 1250 / 2500** → **1.5% / 1% / 0.5% / 1%** notional. Router is fee-excluded on the token.
 
@@ -107,7 +107,7 @@ Authoritative detail: [**FEE_REFERENCE.md**](FEE_REFERENCE.md).
 
 2. **DEX routers:** The constructor registers one V2-style router (`dexFactoryForRouter[router] = router.factory()`). Add or remove more with `setDexRouter(router, active)` (emits `DexRouterUpdated`). Registered routers are fee-excluded. Taxed swaps are still driven by `isPair`, not by this mapping.
 
-3. **Cashback:** NEXUS cashback on **buys** via **`recordBuyAndMintCashback`** (portail / routeur USDC): **30%** presale / **10%** after finalize. Achats **directs depuis la paire** ne mintent pas de NEXUS. NEXUS est soulbound. `TCGNexusToken`’s minter is set at deployment to `TCGVaultToken` and is immutable (no setter).
+3. **Cashback:** NEXUS cashback on **buys** via **`recordBuyAndMintCashback`** (portail / routeur USDC): **30%** presale / **3%** after finalize. Achats **directs depuis la paire** ne mintent pas de NEXUS. NEXUS est soulbound. `TCGNexusToken`’s minter is set at deployment to `TCGVaultToken` and is immutable (no setter).
 
 4. **Autolp:** Portions of buy/sell fees increase `pendingAutolp`; operators call `executePendingAutolp` when adding liquidity (see token NatSpec). This accrual is not a circulating-supply burn.
 

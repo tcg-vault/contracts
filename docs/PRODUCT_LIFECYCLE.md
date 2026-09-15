@@ -12,7 +12,7 @@ Numeric defaults, mutability (`ADMIN_ROLE`, router `onlyOwner`), caps (`TCGVault
 - **Direct pool sell:** **5%** TCGV; default **40% / 40% / 20%** of the fee to vault / autolp / marketing (**2% + 2% + 1%** notional; community **0%** default).
 - **Router buy (routeur ON):** **5%** of USDC in (**3% + 2%** vault + marketing); **100%** of TCGV out to buyer.
 - **Router sell:** **4%** of USDC out; four-way split (**FEE_REFERENCE.md** §2.2).
-- **$TCGNEXUS cashback (portail):** **30%** / **10%** of TCGV via `recordBuyAndMintCashback` (`TCGVaultToken`).
+- **$TCGNEXUS cashback (portail):** **30%** / **3%** of TCGV via `recordBuyAndMintCashback` (`TCGVaultToken`).
 
 ## Product lifecycle
 

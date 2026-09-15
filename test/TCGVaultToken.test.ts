@@ -102,7 +102,7 @@ describe("TCGVaultToken", () => {
   const TOTAL_SUPPLY = parseEther("1000000000");
   const BUY_TAX_BP = 600n;
   const SELL_TAX_BP = 500n;
-  const CASHBACK_BP_STANDARD = 1000n; // 10% after presale (whitepaper §6)
+  const CASHBACK_BP_STANDARD = 300n; // 3% after presale (whitepaper §6)
   const CASHBACK_BP_PRESALE = 3000n; // 30% during Vagues 1 et 2 (whitepaper §6)
 
   before(async () => {
@@ -288,7 +288,7 @@ describe("TCGVaultToken", () => {
       expect(nexusAfter).to.equal(nexusBefore);
     });
 
-    it("pool buy does not mint NEXUS even when presale ended (getCashbackRate would be 10%)", async () => {
+    it("pool buy does not mint NEXUS even when presale ended (getCashbackRate would be 3%)", async () => {
       if (await tcgv.read.presaleActive()) return;
       expect(await tcgv.read.getCashbackRate()).to.equal(BigInt(CASHBACK_BP_STANDARD));
       const buyAmountUsdc = parseUnits("50", 6);

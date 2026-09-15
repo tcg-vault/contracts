@@ -250,7 +250,7 @@ contract TCGVaultInitialLaunch is Ownable2Step, ReentrancyGuard {
         emit Finalized(_tgeTimestamp);
     }
 
-    /// @notice Finalize presale and set TGE for vesting. Callable only after the 120h countdown + delay. Notifies TCGVaultToken to switch cashback from 30% to 10% and recompute supply (whitepaper §6).
+    /// @notice Finalize presale and set TGE for vesting. Callable only after the 120h countdown + delay. Notifies TCGVaultToken to switch cashback from 30% to 3% and recompute supply (whitepaper §6).
     function finalize() external {
         if (_tgeTimestamp != 0) revert AlreadyFinalized();
         if (!_canFinalizeNormally()) revert PresaleNotEnded();

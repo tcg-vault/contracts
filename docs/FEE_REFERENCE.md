@@ -42,7 +42,7 @@ Applies when users swap **TCGV ↔ other token** through a registered **pair** (
 
 | Path | $TCGNEXUS |
 |------|-----------|
-| **USDC portail** (`TCGVaultBuyRouter` → `recordBuyAndMintCashback`) | Yes: **30%** of TCGV received if `presaleActive`, else **10%**. |
+| **USDC portail** (`TCGVaultBuyRouter` → `recordBuyAndMintCashback`) | Yes: **30%** of TCGV received if `presaleActive`, else **3%**. |
 | **Direct pair buy** (`_handleBuy`) | **No** mint on pair buys. |
 
 Sells do not mint $TCGNEXUS.

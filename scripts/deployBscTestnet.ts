@@ -603,7 +603,7 @@ async function main() {
   console.log();
   console.log("Next steps:");
   console.log("  1. Run presale (Founder NFT + InitialLaunch.buy).");
-  console.log("  2. After countdown, initialLaunch.finalize() → token supply recompute + 10% NEXUS mode.");
+  console.log("  2. After countdown, initialLaunch.finalize() → token supply recompute + 3% NEXUS mode.");
   console.log("  3. Create TCGV/USDC pair on Pancake testnet (factory above) or router; token.setPair(pair, true).");
   console.log("  4. Add liquidity via LiquidityWrapper (approve TCGV + USDC, addLiquidity).");
   console.log("  5. Optional: token.setMinAmounts(minBuy, minSell) for small pools.");

@@ -6,7 +6,7 @@ Description **factuelle** du comportement actuel des smart contracts dans ce dé
 
 - **Paire DEX — routeur OFF (`TCGVaultToken`) :** achat **6 %** en TCGV (tiers du montant de taxe → vault / marketing / `pendingAutolp`, ≈ **2 % + 2 % + 2 %** notionnels) ; vente **5 %** avec répartition par défaut (**40 % / 40 % / 20 %** de la part taxe → vault / autolp / marketing ; communauté **0 %**). Pas de burn de supply sur ces frais. **Aucun** mint $TCGNEXUS sur l’achat paire.
 - **Portail USDC — routeur ON (`TCGVaultBuyRouter`) :** achat **5 %** de l’USDC (**3 %** vault + **2 %** marketing) puis swap ; vente **4 %** sur l’USDC sortant (**FEE_REFERENCE.md** §2.2). Le routeur est exclu des frais sur le token pour éviter la double taxation.
-- **Cashback $TCGNEXUS :** **uniquement** via `recordBuyAndMintCashback` après achat via le routeur USDC — **30 %** / **10 %** du TCGV reçu (prévente / post-finalisation).
+- **Cashback $TCGNEXUS :** **uniquement** via `recordBuyAndMintCashback` après achat via le routeur USDC — **30 %** / **3 %** du TCGV reçu (prévente / post-finalisation).
 - **Plafonds :** token paire `MAX_BUY_TAX_BP = 600`, `MAX_SELL_TAX_BP = 500` ; routeur `MAX_BUY_TOTAL_BP = 500`, `MAX_SELL_TAX_BP = 400`. Les taxes restent bornées par ces constantes (`setBuyFeeParams` / `setSellFeeParams`) et peuvent être remontées après une baisse.
 
 ## NEXUS (`TCGNexusToken`)

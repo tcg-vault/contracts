@@ -45,7 +45,7 @@ error NoFeesToClaim();
  *
  * @dev **Routeur ON (portail / USDC)** — implémenté par `TCGVaultBuyRouter`, pas par les taxes paire ci-dessous : achat **5%** USDC (**3%** coffre / vault, **2%** structure),
  *      vente **4%** sur l’USDC (**1,5%** vault, **1%** liquidité, **1%** récompenses communautaires, **0,5%** structure). Le routeur est exclu des frais sur ce token pour éviter la double taxation.
- *      Cashback **$TCGNEXUS** : **30%** du montant TCGV acheté tant que `presaleActive`, puis **10%** — uniquement via `recordBuyAndMintCashback` appelé par le buy router (pas sur un swap paire direct).
+ *      Cashback **$TCGNEXUS** : **30%** du montant TCGV acheté tant que `presaleActive`, puis **3%** — uniquement via `recordBuyAndMintCashback` appelé par le buy router (pas sur un swap paire direct).
  *
  * @dev **Routeur OFF (DEX / paire directe)** — taxes en **$TCGV** sur les transferts swap via `isPair` : achat **6%** (tiers du fee ≈ **2%** vault, **2%** structure & marketing, **2%** liquidité → `pendingAutolp`),
  *      vente **5%** du fee (**40% / 40% / 20%** du montant de taxe → **2%** vault, **2%** liquidité, **1%** structure & marketing ; poche communauté **0%** par défaut). **Aucune** attribution $TCGNEXUS sur l’achat paire (`_handleBuy`).
@@ -71,13 +71,13 @@ contract TCGVaultToken is ERC20, AccessControl, ReentrancyGuard {
     // Fee parameters (basis points, 10000 = 100%) — routeur OFF (paire); owner-modifiable within MAX_* caps
     uint256 public BUY_TAX = 600; // 6% — swap direct via paire (`isPair`)
     uint256 public SELL_TAX = 500; // 5% — idem
-    /// @notice Standard-period cashback in NEXUS (after presale). Whitepaper §6: 10% — immutable.
-    uint256 private constant CASHBACK_RATE = 1000; // 10%
+    /// @notice Standard-period cashback in NEXUS (after presale). Whitepaper §6: 3% — immutable.
+    uint256 private constant CASHBACK_RATE = 300; // 3%
     /// @notice Presale cashback (Vagues 1 et 2). Whitepaper §6: BONUS PIONNIER 30% — immutable.
     uint256 private constant CASHBACK_RATE_PRESALE = 3000; // 30%
     /// @notice Seconds per month for vesting (30 days).
     uint256 private constant SECONDS_PER_MONTH = 30 * 24 * 3600;
-    /// @notice When true, cashback uses 30%; when false (after presale finalize), uses 10%. Only set when `initialLaunch` calls finalizePresaleAndRecompute().
+    /// @notice When true, cashback uses 30%; when false (after presale finalize), uses 3%. Only set when `initialLaunch` calls finalizePresaleAndRecompute().
     bool public presaleActive = true;
 
     // Buy fee split (bps of fee amount; sum 10000) — routeur OFF: ≈2% + 2% + 2% notional on 6% fee
@@ -448,7 +448,7 @@ contract TCGVaultToken is ERC20, AccessControl, ReentrancyGuard {
 
     /**
      * @notice Finalize presale and recompute supply in a single call.
-     * @dev Only callable by `initialLaunch` (TCGVaultInitialLaunch.finalize). Switches cashback from 30% to 10%, then mints: 20% liquidity (direct), 4% team (vesting: 12mo cliff + 24mo monthly), 5% ops (direct), 11% ops (vesting: 36mo monthly, no cliff). Called once at presale end.
+     * @dev Only callable by `initialLaunch` (TCGVaultInitialLaunch.finalize). Switches cashback from 30% to 3%, then mints: 20% liquidity (direct), 4% team (vesting: 12mo cliff + 24mo monthly), 5% ops (direct), 11% ops (vesting: 36mo monthly, no cliff). Called once at presale end.
      */
     function finalizePresaleAndRecompute() external {
         if (msg.sender != initialLaunch) revert OnlyInitialLaunch();
@@ -456,7 +456,7 @@ contract TCGVaultToken is ERC20, AccessControl, ReentrancyGuard {
         if (!presaleActive) revert PresaleNotFinalized();
         if (liquidityRecipient == address(0) || teamRecipient == address(0) || opsRecipient == address(0)) revert AllocationRecipientsNotSet();
 
-        // Finalize presale: switch cashback 30% -> 10%
+        // Finalize presale: switch cashback 30% -> 3%
         presaleActive = false;
         emit PresaleActiveUpdated(false);
         emit PresaleFinalized();
@@ -569,7 +569,7 @@ contract TCGVaultToken is ERC20, AccessControl, ReentrancyGuard {
         return _opsVestingClaimable();
     }
 
-    /// @notice Effective cashback rate: 30% during presale (Vagues 1 et 2), 10% in standard period (whitepaper §6). Rates are constants.
+    /// @notice Effective cashback rate: 30% during presale (Vagues 1 et 2), 3% in standard period (whitepaper §6). Rates are constants.
     function getCashbackRate() public view returns (uint256) {
         return presaleActive ? CASHBACK_RATE_PRESALE : CASHBACK_RATE;
     }
@@ -592,7 +592,7 @@ contract TCGVaultToken is ERC20, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Routeur ON only: after USDC→TCGV via buy router, mints $TCGNEXUS cashback (30% presale / 10% standard of `tcgvAmount`). Only `buyRouter`.
+     * @notice Routeur ON only: after USDC→TCGV via buy router, mints $TCGNEXUS cashback (30% presale / 3% standard of `tcgvAmount`). Only `buyRouter`.
      */
     function recordBuyAndMintCashback(address recipient, uint256 tcgvAmount) external {
         if (msg.sender != buyRouter) revert OnlyBuyRouter();
