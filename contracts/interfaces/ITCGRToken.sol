@@ -4,7 +4,7 @@ pragma solidity 0.8.27;
 interface ITCGRToken {
     /// @notice Process a validated buy and mint referral rewards when applicable.
     /// @param buyer Buyer address whose durable referrer link is checked.
-    /// @param usdcAmount Purchase amount in USDC (6 decimals) used to compute TCGR reward.
+    /// @param usdcAmount Purchase amount in USDC base units used to compute TCGR reward.
     function processValidatedBuy(address buyer, uint256 usdcAmount) external;
 
     /// @notice Burn TCGR from an account as part of TCGR-to-TCGV conversion flow.

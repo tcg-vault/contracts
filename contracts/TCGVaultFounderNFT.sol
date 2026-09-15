@@ -5,6 +5,7 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ITCGNexusToken} from "./interfaces/ITCGNexusToken.sol";
@@ -22,6 +23,8 @@ contract TCGVaultFounderNFT is ERC721, Ownable2Step, ReentrancyGuard {
 
     IERC20 private immutable _usdc;
     ITCGNexusToken private immutable _nexusToken;
+    /// @dev `10 ** IERC20Metadata(usdc).decimals()` — prices and NEXUS scaling follow the wired stablecoin.
+    uint256 private immutable _stableUnit;
 
     /// @notice Wave 1 paid cap: 245 NFTs at 200 USDC.
     uint256 public constant WAVE1_SIZE = 245;
@@ -34,10 +37,12 @@ contract TCGVaultFounderNFT is ERC721, Ownable2Step, ReentrancyGuard {
     /// @notice Max supply including reserve (500).
     uint256 public constant TOTAL_SUPPLY_CAP = PAID_TOTAL + STRATEGIC_RESERVE_MAX;
 
-    uint256 public constant WAVE1_PRICE = 200 * 1e6; // 200 USDC (6 decimals)
-    uint256 public constant WAVE2_PRICE = 350 * 1e6; // 350 USDC (6 decimals)
+    /// @notice Wave 1 price in USDC base units (`200 * 10**decimals`).
+    uint256 public immutable WAVE1_PRICE;
+    /// @notice Wave 2 price in USDC base units (`350 * 10**decimals`).
+    uint256 public immutable WAVE2_PRICE;
     uint256 public constant WAVE1_DURATION = 7 days;
-    /// @dev 30% of USDC amount (6 decimals) → NEXUS with 18 decimals: amount * 30/100 * 1e18/1e6
+    /// @dev 30% of USDC amount → NEXUS with 18 decimals: amount * 30/100 * 1e18 / _stableUnit
     uint256 private constant NEXUS_BONUS_BP = 3000; // 30%
 
     uint256 private _nextTokenId;
@@ -70,12 +75,18 @@ contract TCGVaultFounderNFT is ERC721, Ownable2Step, ReentrancyGuard {
     error ExceedsSupply();
     error StrategicReserveNotCancellable();
     error StrategicReserveCapReached();
+    error UnsupportedStableDecimals(uint8 decimals_);
 
     constructor(address usdc_, address nexusToken_, address caspUsdcRecipient_)
         ERC721("TCG-VAULT Founder", "TCGVF")
         Ownable(msg.sender)
     {
-        if (nexusToken_ == address(0) || caspUsdcRecipient_ == address(0)) revert ZeroAddress();
+        if (usdc_ == address(0) || nexusToken_ == address(0) || caspUsdcRecipient_ == address(0)) revert ZeroAddress();
+        uint8 d = IERC20Metadata(usdc_).decimals();
+        if (d > 18) revert UnsupportedStableDecimals(d);
+        _stableUnit = 10 ** uint256(d);
+        WAVE1_PRICE = 200 * _stableUnit;
+        WAVE2_PRICE = 350 * _stableUnit;
         _usdc = IERC20(usdc_);
         _nexusToken = ITCGNexusToken(nexusToken_);
         _caspUsdcRecipient = caspUsdcRecipient_;
@@ -153,7 +164,7 @@ contract TCGVaultFounderNFT is ERC721, Ownable2Step, ReentrancyGuard {
 
         _usdc.safeTransferFrom(msg.sender, _caspUsdcRecipient, price);
 
-        uint256 nexusAmount = (price * NEXUS_BONUS_BP * 1e18) / (10000 * 1e6);
+        uint256 nexusAmount = (price * NEXUS_BONUS_BP * 1e18) / (10000 * _stableUnit);
         if (nexusAmount > 0) _nexusToken.mintPresaleBonus(msg.sender, nexusAmount);
 
         _purchasedAt[tokenId] = block.timestamp;
@@ -183,8 +194,8 @@ contract TCGVaultFounderNFT is ERC721, Ownable2Step, ReentrancyGuard {
 
     /// @notice MiCA cooling-off cancellation: paid mints only — burn NFT + claw back NEXUS bonus.
     function cancelFounderPurchase(uint256 tokenId) external nonReentrant {
-        if (msg.sender != ownerOf(tokenId)) revert Unauthorized();
         if (_cancelled[tokenId]) revert AlreadyCancelled();
+        if (msg.sender != ownerOf(tokenId)) revert Unauthorized();
         if (_isStrategicReserve[tokenId]) revert StrategicReserveNotCancellable();
 
         uint256 purchasedAt = _purchasedAt[tokenId];

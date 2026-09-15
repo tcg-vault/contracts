@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
@@ -14,10 +15,13 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  *      L'owner peut bannir un parrain ou un filleul du programme (fraude) : plus de récompenses TCGR pour ces achats.
  */
 contract TCGRToken is ERC20, Ownable2Step {
-    /// @notice 0.5% of USDC (6 decimals) value minted as TCGR (18 decimals) per validated buy.
+    /// @notice 0.5% of USDC value minted as TCGR (18 decimals) per validated buy.
     uint256 public constant REFERRAL_BP = 50;
     /// @notice Fixed referral vesting period bucket (next bucket unlocks prior bucket rewards).
     uint256 public constant REFERRAL_VESTING_BUCKET = 30 days;
+
+    /// @dev Scale USDC base units to 18 decimals: `10 ** (18 - usdc.decimals())`.
+    uint256 private immutable _usdcTo18Scale;
 
     address private _minter;
     address private _converter;
@@ -54,9 +58,13 @@ contract TCGRToken is ERC20, Ownable2Step {
     error InsufficientUnlockedBalance();
     error ReferrerAlreadySet();
     error SelfReferralNotAllowed();
+    error UnsupportedStableDecimals(uint8 decimals_);
 
-    constructor(address minter_) ERC20("TCG-Referral", "TCGR") Ownable(msg.sender) {
-        if (minter_ == address(0)) revert ZeroAddress();
+    constructor(address minter_, address usdc_) ERC20("TCG-Referral", "TCGR") Ownable(msg.sender) {
+        if (minter_ == address(0) || usdc_ == address(0)) revert ZeroAddress();
+        uint8 d = IERC20Metadata(usdc_).decimals();
+        if (d > 18) revert UnsupportedStableDecimals(d);
+        _usdcTo18Scale = 10 ** uint256(18 - d);
         _minter = minter_;
         emit MinterUpdated(minter_);
         emit ConverterUpdated(address(0));
@@ -139,7 +147,7 @@ contract TCGRToken is ERC20, Ownable2Step {
     }
 
     /**
-     * @notice After a validated USDC buy via router: mint 0.5% of USDC value (6→18 decimals) to the buyer's referrer.
+     * @notice After a validated USDC buy via router: mint 0.5% of USDC value (scaled to 18 decimals) to the buyer's referrer.
      * @dev Only minter. No-op if buyer or referrer is banned, buyer has no referrer, or amount rounds to zero.
      */
     function processValidatedBuy(address buyer, uint256 usdcAmount) external {
@@ -150,7 +158,7 @@ contract TCGRToken is ERC20, Ownable2Step {
         if (ref == address(0)) return;
         if (_bannedFromReferralProgram[ref]) return;
         if (_qualifyingNft != address(0) && IERC721(_qualifyingNft).balanceOf(ref) == 0) return;
-        uint256 amount = (usdcAmount * 1e12 * REFERRAL_BP) / 10000;
+        uint256 amount = (usdcAmount * _usdcTo18Scale * REFERRAL_BP) / 10000;
         if (amount == 0) return;
         _settleReferralUnlock(ref);
         _mint(ref, amount);

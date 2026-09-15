@@ -6,6 +6,11 @@ interface ITCGVaultToken {
     /// @return Vault address used by TCGV token logic.
     function vaultAddress() external view returns (address);
 
+    /// @notice Return whether `account` is a registered taxed pair.
+    /// @param account Address to check.
+    /// @return True when `account` is marked as an active trading pair.
+    function isPair(address account) external view returns (bool);
+
     /// @notice Return whether an account is blacklisted by TCGV token policy.
     /// @param account Address to check.
     /// @return True when `account` is blacklisted.

@@ -3,6 +3,7 @@
  * Run Hardhat coverage using the main hardhat.config.ts.
  * Excludes fork-only contracts (WBNB, Pancake*) so we can drop the 0.4.18 compiler
  * and the injected coverage library (pragma >=0.4.22) compiles with 0.5.16+.
+ * After a successful run, strips contracts/test from lcov and prints production-only totals.
  */
 import { spawnSync } from "child_process";
 import { join, dirname } from "path";
@@ -24,6 +25,11 @@ try {
     { cwd: ROOT, stdio: "inherit", shell: true, env: { ...process.env, COVERAGE: "1" } }
   );
   exitCode = r.status ?? 1;
+  if (exitCode === 0) {
+    const filter = join(ROOT, "scripts", "coverage-production-only.mjs");
+    const f = spawnSync("node", [filter], { cwd: ROOT, stdio: "inherit" });
+    if (f.status !== 0) exitCode = f.status ?? 1;
+  }
 } finally {
   spawnSync("node", [excludeScript, "show"], { cwd: ROOT });
 }

@@ -34,4 +34,5 @@ Use the same Ethereum addresses in `.env` as in your operational wallet list. Va
 
 - `TCGVaultFounderNFT.cancelFounderPurchase()` and `TCGVaultInitialLaunch.cancelOrder()` emit refund-due amounts (`usdcRefundDue`) but do not execute on-chain USDC payout.
 - Refund execution is expected from the regulated recipient account that received the original USDC transfer (`_caspUsdcRecipient` / `_treasury`).
+- Before paying a refund, operators must verify the event’s `nexusClawedBack` (and related unwind fields) matches the expected bonus; do not auto-refund solely on `usdcRefundDue` if clawback is incomplete (e.g. Founder NFT transferred before cancel).
 - Recipient addresses can be rotated by contract owner (`setCaspUsdcRecipient`, `setTreasury`), so operations should maintain an auditable mapping of active custody addresses and change approvals.

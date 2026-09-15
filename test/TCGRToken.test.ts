@@ -20,14 +20,15 @@ async function deployFixture() {
   const minter = wallets[1]!;
   const referrer = wallets[2]!;
   const referee = wallets[3]!;
-  const tcgr = await viem.deployContract("TCGRToken", [minter.account.address], { client: { wallet: owner } });
+  const usdc = await viem.deployContract("contracts/test/MockUSDC.sol:MockUSDC", [], { client: { wallet: owner } });
+  const tcgr = await viem.deployContract("TCGRToken", [minter.account.address, usdc.address], { client: { wallet: owner } });
   const qualifyingNft = await viem.deployContract("contracts/test/MockQualifyingNFT.sol:MockQualifyingNFT", [], {
     client: { wallet: owner },
   });
   await tcgr.write.setQualifyingNft([qualifyingNft.address], { account: owner.account });
   await qualifyingNft.write.mint([owner.account.address], { account: owner.account });
   await qualifyingNft.write.mint([referrer.account.address], { account: owner.account });
-  return { owner, minter, referrer, referee, tcgr, qualifyingNft };
+  return { owner, minter, referrer, referee, tcgr, qualifyingNft, usdc };
 }
 
 /** Mint tcgrWei to `recipient` via processValidatedBuy(referee, usdc). */
@@ -47,9 +48,20 @@ describe("TCGRToken", function () {
   it("constructor reverts when minter is zero", async function () {
     const wallets = await viem.getWalletClients();
     const owner = wallets[0]!;
-    const { tcgr } = await networkHelpers.loadFixture(deployFixture);
+    const { tcgr, usdc } = await networkHelpers.loadFixture(deployFixture);
     await viem.assertions.revertWithCustomError(
-      viem.deployContract("TCGRToken", [zeroAddress], { client: { wallet: owner } }),
+      viem.deployContract("TCGRToken", [zeroAddress, usdc.address], { client: { wallet: owner } }),
+      tcgr,
+      "ZeroAddress"
+    );
+  });
+
+  it("constructor reverts when usdc is zero", async function () {
+    const wallets = await viem.getWalletClients();
+    const owner = wallets[0]!;
+    const { tcgr, minter } = await networkHelpers.loadFixture(deployFixture);
+    await viem.assertions.revertWithCustomError(
+      viem.deployContract("TCGRToken", [minter.account.address, zeroAddress], { client: { wallet: owner } }),
       tcgr,
       "ZeroAddress"
     );

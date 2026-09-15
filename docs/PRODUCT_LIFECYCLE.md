@@ -40,6 +40,7 @@ USDC custody and cooling-off cancellation are intentionally split between on-cha
 - **No contract escrow**: USDC is not retained on these contracts during the 14-day cancellation window.
 - **On-chain cancellation effects**: `cancelFounderPurchase()` and `cancelOrder()` unwind entitlement on-chain (burn NFT / burn allocated TCGV / claw back NEXUS bonus where applicable).
 - **Refund execution**: USDC repayment is handled off-chain by the regulated recipient after indexing cancellation events (`FounderPurchaseCancelled`, `PresaleOrderCancelled`), where `usdcRefundDue` is emitted as the reconciliation amount.
+- **Ops check before refund (F-2026-19267 / F-2026-15950)**: CASP/treasury operators must reconcile `nexusClawedBack` (and for Founder, current NFT ownership) before paying `usdcRefundDue`. A transfer of a Founder NFT before cancel can leave soulbound NEXUS on the original buyer while the canceller is the new owner — treat incomplete clawback as a blocked or escalated refund, not an automatic full USDC payout.
 
 This architecture is used to satisfy the requirement that client funds are routed to regulated custody rails (CASP/treasury) instead of being held in smart contract escrow.
 

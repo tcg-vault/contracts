@@ -255,7 +255,9 @@ contract TCGVaultToken is ERC20, AccessControl, ReentrancyGuard {
     }
 
     /**
-     * @notice Register (`active == true`) or remove (`active == false`) a Uniswap V2–style router: stores `factory` from `router.factory()`, fee-excludes the router.
+     * @notice Register (`active == true`) or remove (`active == false`) a Uniswap V2–style router: stores `factory` from `router.factory()`.
+     * @dev Does **not** fee-exclude the DEX router. Shared Pancake/Uniswap routers must remain taxed when interacting with registered pairs.
+     *      Protocol helpers (`BuyRouter`, `LiquidityWrapper`) are excluded separately via {setExcludedFromFees}/{setBuyRouter}.
      */
     function setDexRouter(address router, bool active) external onlyRole(ADMIN_ROLE) {
         _setDexRouter(router, active);
@@ -267,14 +269,10 @@ contract TCGVaultToken is ERC20, AccessControl, ReentrancyGuard {
             address factory_ = IPancakeRouter(router).factory();
             if (factory_ == address(0)) revert ZeroAddress();
             dexFactoryForRouter[router] = factory_;
-            isExcludedFromFees[router] = true;
             emit DexRouterUpdated(router, factory_, true);
-            emit ExcludedFromFeesUpdated(router, true);
         } else {
             dexFactoryForRouter[router] = address(0);
-            isExcludedFromFees[router] = false;
             emit DexRouterUpdated(router, address(0), false);
-            emit ExcludedFromFeesUpdated(router, false);
         }
     }
 

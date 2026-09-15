@@ -10,6 +10,7 @@ dotenvConfig();
 
 export default defineConfig({
   // Coverage: run `yarn coverage` (uses this config + --coverage; reports in coverage/ as lcov & HTML).
+  // Hardhat 3.1.10 instruments all sources; scripts/run-coverage.mjs then drops contracts/test from the report.
   plugins: [
     hardhatViem,
     hardhatViemAssertions,
@@ -21,7 +22,8 @@ export default defineConfig({
     // Coverage injects a library with pragma >=0.4.22; avoid 0.4.18 so it is not selected (use COVERAGE=1 + exclude WBNB).
     compilers: process.env.COVERAGE
       ? [
-          { version: "0.8.27", settings: { optimizer: { enabled: true }, evmVersion: "cancun" as const } },
+          // Optimizer off so coverage is not collapsed by inlining (e.g. maxDeposit/maxWithdraw `return 0`).
+          { version: "0.8.27", settings: { optimizer: { enabled: false }, evmVersion: "cancun" as const } },
           { version: "0.6.6", settings: { optimizer: { enabled: true } } },
           { version: "0.5.16", settings: { optimizer: { enabled: true } } },
         ]

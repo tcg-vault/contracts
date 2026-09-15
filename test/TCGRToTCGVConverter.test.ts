@@ -20,7 +20,8 @@ async function deployFixture() {
   const user = wallets[2]!;
   const referee = wallets[3]!;
 
-  const tcgr = await viem.deployContract("TCGRToken", [minter.account.address], { client: { wallet: owner } });
+  const usdc = await viem.deployContract("contracts/test/MockUSDC.sol:MockUSDC", [], { client: { wallet: owner } });
+  const tcgr = await viem.deployContract("TCGRToken", [minter.account.address, usdc.address], { client: { wallet: owner } });
   const mockTcgv = await viem.deployContract("contracts/test/MockTCGVPresale.sol:MockTCGVPresale", [], { client: { wallet: owner } });
   await mockTcgv.write.mint([owner.account.address, parseEther("1000000")], { account: owner.account });
 
@@ -34,7 +35,7 @@ async function deployFixture() {
   await tcgr.write.setConverter([converter.address], { account: owner.account });
   await mockTcgv.write.transfer([converter.address, parseEther("100000")], { account: owner.account });
 
-  return { owner, minter, user, referee, tcgr, mockTcgv, converter };
+  return { owner, minter, user, referee, tcgr, mockTcgv, converter, usdc };
 }
 
 async function mintTcgrToUser(
@@ -151,7 +152,8 @@ describe("TCGRToTCGVConverter", function () {
     const minter = wallets[1]!;
     const user = wallets[2]!;
     const referee = wallets[3]!;
-    const tcgr = await viem.deployContract("TCGRToken", [minter.account.address], { client: { wallet: owner } });
+    const usdc = await viem.deployContract("contracts/test/MockUSDC.sol:MockUSDC", [], { client: { wallet: owner } });
+    const tcgr = await viem.deployContract("TCGRToken", [minter.account.address, usdc.address], { client: { wallet: owner } });
     const mockTcgv = await viem.deployContract("contracts/test/MockTCGVPresale.sol:MockTCGVPresale", [], { client: { wallet: owner } });
     await mockTcgv.write.mint([owner.account.address, parseEther("1000")], { account: owner.account });
     const tinyRatio = 1n; // 1 wei: (1 * 1) / 1e18 = 0

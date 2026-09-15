@@ -11,7 +11,16 @@ contract MockStakingForBasicNFT {
         return MIN;
     }
 
-    function balanceOf(address) external pure returns (uint256) {
+    mapping(address => uint256) private _balances;
+    bool private _useMapping;
+
+    function setBalance(address account, uint256 amount) external {
+        _balances[account] = amount;
+        _useMapping = true;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        if (_useMapping) return _balances[account];
         return 0;
     }
 

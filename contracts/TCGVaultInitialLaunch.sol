@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ITCGVaultFounderNFT} from "./interfaces/ITCGVaultFounderNFT.sol";
@@ -41,9 +42,13 @@ contract TCGVaultInitialLaunch is Ownable2Step, ReentrancyGuard {
     IERC20 private immutable _usdc;
     ITCGVaultFounderNFT private immutable _founderNFT;
     ITCGNexusToken private immutable _nexusToken;
+    /// @dev `10 ** IERC20Metadata(usdc).decimals()` — prices and NEXUS scaling follow the wired stablecoin.
+    uint256 private immutable _stableUnit;
 
-    uint256 public constant PRICE_WAVE1 = 0.005e6;   // 0,005 USDC (6 decimals) per TCGV
-    uint256 public constant PRICE_WAVE2 = 0.008e6;    // 0,008 USDC (6 decimals) per TCGV
+    /// @notice Wave 1 price in USDC base units per 1 TCGV (`0.005 * 10**decimals`).
+    uint256 public immutable PRICE_WAVE1;
+    /// @notice Wave 2 price in USDC base units per 1 TCGV (`0.008 * 10**decimals`).
+    uint256 public immutable PRICE_WAVE2;
     uint256 public constant FOUNDER_WAVE2_DURATION = 10 days;
     uint256 public constant PRESALE_COUNTDOWN_HOURS = 120;
     uint256 public constant HARD_CAP_TCGV = 600_000_000 * 1e18;
@@ -85,9 +90,18 @@ contract TCGVaultInitialLaunch is Ownable2Step, ReentrancyGuard {
     error Unauthorized();
     error CancellationWindowEnded();
     error EmergencyFinalizeNotAvailable();
+    error UnsupportedStableDecimals(uint8 decimals_);
+    error ZeroAddress();
 
     constructor(address tcgv_, address usdc_, address founderNFT_, address nexusToken_, address treasury_) Ownable(msg.sender) {
         if (nexusToken_ == address(0)) revert ZeroNexusToken();
+        if (tcgv_ == address(0) || usdc_ == address(0) || founderNFT_ == address(0)) revert ZeroAddress();
+        uint8 d = IERC20Metadata(usdc_).decimals();
+        if (d > 18) revert UnsupportedStableDecimals(d);
+        _stableUnit = 10 ** uint256(d);
+        // 0.005 and 0.008 USDC per TCGV in stablecoin base units.
+        PRICE_WAVE1 = (5 * _stableUnit) / 1000;
+        PRICE_WAVE2 = (8 * _stableUnit) / 1000;
         _tcgv = IERC20(tcgv_);
         _usdc = IERC20(usdc_);
         _founderNFT = ITCGVaultFounderNFT(founderNFT_);
@@ -162,7 +176,7 @@ contract TCGVaultInitialLaunch is Ownable2Step, ReentrancyGuard {
         _totalTCGVAllocated += tcgvAmount;
         u.tcgvAllocated += tcgvAmount;
 
-        uint256 nexusAmount = (usdcAmount * NEXUS_BONUS_BP * 1e18) / (10000 * 1e6);
+        uint256 nexusAmount = (usdcAmount * NEXUS_BONUS_BP * 1e18) / (10000 * _stableUnit);
         _orders[orderId] = Order({
             buyer: msg.sender,
             usdcAmount: usdcAmount,

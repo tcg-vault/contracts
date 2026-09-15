@@ -93,7 +93,6 @@ contract MockUniswapV2Pair is ERC20 {
     }
 
     function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata) external {
-        require(amount0Out > 0 || amount1Out > 0, "INSUFFICIENT_OUTPUT_AMOUNT");
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         require(amount0Out < _reserve0 && amount1Out < _reserve1, "INSUFFICIENT_LIQUIDITY");
         if (amount0Out > 0) IERC20(token0).transfer(to, amount0Out);
@@ -101,6 +100,19 @@ contract MockUniswapV2Pair is ERC20 {
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
         _update(balance0, balance1, _reserve0, _reserve1);
+    }
+
+    /// @notice Test-only: pin cumulative prices / timestamp so TWAP fallbacks can be forced.
+    function setOracleState(uint256 p0, uint256 p1, uint32 ts) external {
+        price0CumulativeLast = p0;
+        price1CumulativeLast = p1;
+        blockTimestampLast = ts;
+    }
+
+    function setOracleStateNow(uint256 p0, uint256 p1) external {
+        price0CumulativeLast = p0;
+        price1CumulativeLast = p1;
+        blockTimestampLast = uint32(block.timestamp);
     }
 
     function sync() external {

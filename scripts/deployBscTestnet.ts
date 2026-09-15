@@ -504,12 +504,12 @@ async function main() {
   let converterAddress: Address | undefined;
   if (process.env.SKIP_TCGR !== "1") {
     console.log("--- TCGR + converter (1:1) ---");
-    const tcgr = await deployTracked("TCGRToken", [buyRouterAddress], { client: { wallet: deployer } });
+    const tcgr = await deployTracked("TCGRToken", [buyRouterAddress, usdcAddress], { client: { wallet: deployer } });
     tcgrAddress = tcgr.address as Address;
     nonce += 1n;
     verifyJobs.push({
       address: tcgrAddress,
-      constructorArguments: [buyRouterAddress],
+      constructorArguments: [buyRouterAddress, usdcAddress],
       contract: "contracts/TCGRToken.sol:TCGRToken",
     });
     const buyRouter = await viem.getContractAt("TCGVaultBuyRouter", buyRouterAddress);

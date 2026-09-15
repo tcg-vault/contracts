@@ -18,4 +18,8 @@ contract MockPresaleLaunch {
     function finalizePresaleAndRecompute(address token) external {
         ITCGVaultToken(token).finalizePresaleAndRecompute();
     }
+
+    function burnPresaleAllocation(address token, address from, uint256 amount) external {
+        ITCGVaultToken(token).burnPresaleAllocation(from, amount);
+    }
 }

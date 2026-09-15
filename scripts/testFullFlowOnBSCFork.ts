@@ -339,7 +339,7 @@ async function main() {
   );
   await token.write.setExcludedFromFees([wrapper.address as Address, true], { account: deployer.account });
 
-  const tcgr = await viem.deployContract("TCGRToken", [buyRouter.address as Address], { client: { wallet: deployer } });
+  const tcgr = await viem.deployContract("TCGRToken", [buyRouter.address as Address, usdcAddress as Address], { client: { wallet: deployer } });
   const tcgrAddress = tcgr.address as Address;
   await buyRouter.write.setReferralToken([tcgrAddress], { account: deployer.account });
   const converter = await viem.deployContract("TCGRToTCGVConverter", [

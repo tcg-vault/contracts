@@ -572,6 +572,33 @@ describe("TCGVaultToken", () => {
       expect(supplyAfter).to.equal(supplyBefore);
       expect(pendingAfter > pendingBefore).to.equal(true);
     });
+
+    it("claimAccruedFees pays pending vault fees and reverts when empty", async () => {
+      const pending = await tcgv.read.pendingFeeClaims([vault.account.address]);
+      expect(pending > 0n).to.equal(true);
+      const balBefore = await tcgv.read.balanceOf([vault.account.address]);
+      await tcgv.write.claimAccruedFees({ account: vault.account });
+      expect(await tcgv.read.pendingFeeClaims([vault.account.address])).to.equal(0n);
+      expect(await tcgv.read.balanceOf([vault.account.address])).to.equal(balBefore + pending);
+      await expectRevert(tcgv.write.claimAccruedFees({ account: vault.account }));
+    });
+
+    it("sell fee with community share accrues community pendingFeeClaims", async () => {
+      await tcgv.write.setSellFeeParams([500n, 2500n, 2500n, 2500n, 2500n], { account: owner.account });
+      const communityBefore = await tcgv.read.pendingFeeClaims([community.account.address]);
+      const sellAmt = parseEther("500");
+      const path = [tcgvAddress, usdcAddress] as const;
+      await tcgv.write.approve([routerAddress, sellAmt], { account: user1.account });
+      await router.write.swapExactTokensForTokens([
+        sellAmt,
+        0n,
+        path,
+        user1.account.address,
+        (await publicClient.getBlock()).timestamp + 300n,
+      ], { account: user1.account });
+      expect(await tcgv.read.pendingFeeClaims([community.account.address]) > communityBefore).to.equal(true);
+      await tcgv.write.setSellFeeParams([500n, 4000n, 4000n, 2000n, 0n], { account: owner.account });
+    });
   });
 
   describe("executePendingAutolp", () => {
@@ -897,6 +924,58 @@ describe("TCGVaultToken", () => {
       expect(reverted).to.equal(true);
     });
 
+    it("constructor reverts ZeroAddress when initialLaunch is zero", async () => {
+      await expectRevert(
+        viem.deployContract("TCGVaultToken", [
+          ZERO,
+          routerAddress,
+          vault.account.address,
+          marketing.account.address,
+          community.account.address,
+          user1.account.address,
+          ZERO,
+        ], { client: { wallet: owner } }),
+      );
+    });
+
+    it("setDexRouter reverts when router.factory() is zero", async () => {
+      const zeroFactory = await viem.deployContract(
+        "contracts/test/CoverageHelpers.sol:MockRouterZeroFactory",
+        [],
+        { client: { wallet: owner } },
+      );
+      await expectRevert(
+        tcgv.write.setDexRouter([zeroFactory.address, true], { account: owner.account }),
+      );
+    });
+
+    it("burnPresaleAllocation reverts for non-launch, zero from is ZeroAddress, amount 0 is no-op", async () => {
+      await expectRevert(
+        tcgv.write.burnPresaleAllocation([owner.account.address, parseEther("1")], { account: owner.account }),
+      );
+      await expectRevert(
+        mockPresaleLaunch.write.burnPresaleAllocation([tcgvAddress, ZERO, parseEther("1")], { account: owner.account }),
+      );
+      const supplyBefore = await tcgv.read.totalSupply();
+      await mockPresaleLaunch.write.burnPresaleAllocation([tcgvAddress, owner.account.address, 0n], {
+        account: owner.account,
+      });
+      expect(await tcgv.read.totalSupply()).to.equal(supplyBefore);
+    });
+
+    it("setBlacklisted reverts ZeroAddress; burnPresaleAllocation burns a positive amount", async () => {
+      await expectRevert(
+        tcgv.write.setBlacklisted([ZERO, true, "fraud"], { account: owner.account }),
+      );
+      const amt = parseEther("3");
+      await mockPresaleLaunch.write.mintPresale([tcgvAddress, user2.account.address, amt], { account: owner.account });
+      const supplyBefore = await tcgv.read.totalSupply();
+      await mockPresaleLaunch.write.burnPresaleAllocation([tcgvAddress, user2.account.address, amt], {
+        account: owner.account,
+      });
+      expect(await tcgv.read.totalSupply()).to.equal(supplyBefore - amt);
+    });
+
     it("dexFactoryForRouter records factory for initial router; setDexRouter adds another router", async () => {
       expect(getAddress(await tcgv.read.dexFactoryForRouter([routerAddress]))).to.equal(
         getAddress(factoryAddress)
@@ -907,10 +986,11 @@ describe("TCGVaultToken", () => {
       const router2 = router2Contract.address as `0x${string}`;
       await tcgv.write.setDexRouter([router2, true], { account: owner.account });
       expect(getAddress(await tcgv.read.dexFactoryForRouter([router2]))).to.equal(getAddress(factoryAddress));
-      expect(await tcgv.read.isExcludedFromFees([router2])).to.equal(true);
+      // Shared DEX routers must not be fee-excluded (F-2026-19268).
+      expect(await tcgv.read.isExcludedFromFees([router2])).to.equal(false);
     });
 
-    it("setDexRouter(false) clears factory mapping and fee exclusion", async () => {
+    it("setDexRouter(false) clears factory mapping without toggling fee exclusion", async () => {
       const router2Contract = await viem.deployContract("MockUniswapV2Router", [factoryAddress, wethAddress], {
         client: { wallet: owner },
       });
@@ -1009,7 +1089,7 @@ describe("TCGVaultToken", () => {
 
     it("setBuyFeeParams reverts InvalidFeeParams when shares do not sum to 10000", async () => {
       await expectRevert(
-        tcgv.write.setBuyFeeParams([1000n, 5000n, 3000n, 1999n], { account: owner.account })
+        tcgv.write.setBuyFeeParams([600n, 5000n, 3000n, 1999n], { account: owner.account })
       );
     });
 
@@ -1034,7 +1114,7 @@ describe("TCGVaultToken", () => {
 
     it("setSellFeeParams reverts InvalidFeeParams when shares do not sum to 10000", async () => {
       await expectRevert(
-        tcgv.write.setSellFeeParams([800n, 4000n, 2000n, 2000n, 999n], { account: owner.account })
+        tcgv.write.setSellFeeParams([500n, 4000n, 2000n, 2000n, 999n], { account: owner.account })
       );
     });
 

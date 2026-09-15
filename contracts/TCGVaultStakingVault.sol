@@ -4,6 +4,8 @@ pragma solidity 0.8.27;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -30,6 +32,13 @@ error FullUnstakeOnly();
 error NonTransferableShares();
 /// @notice ERC-4626 `assets` or `shares` argument must equal the vault-computed value for this receiver/owner.
 error InvalidVaultAmount(uint256 expected, uint256 actual);
+/// @notice Vault exits may not deliver the underlying into a taxed pool directly.
+error ReceiverIsPair();
+/// @notice No unsolicited underlying balance above tracked deposits to recover.
+error NoUnsolicitedAssets();
+/// @notice Stablecoin decimals above 18 are unsupported.
+error UnsupportedStableDecimals(uint8 decimals_);
+error ZeroAddress();
 
 interface IBuyRouterForStaking {
     function factory() external view returns (address);
@@ -52,10 +61,12 @@ interface IBuyRouterForStaking {
  *     staking txs so the effective window stays capped (same chord math applied in `view` for reads).
  */
 contract TCGVaultStakingVault is ERC4626, Ownable2Step {
+    using SafeERC20 for IERC20;
+
     /// @dev Require non-trivial seeding to reduce first-depositor manipulation surface.
     uint256 private constant MIN_INITIAL_DEPOSIT = 1 ether;
-    /// @dev Target Basic NFT stake value in USDC units (6 decimals).
-    uint256 private constant BASIC_NFT_TARGET_USDC = 25 * 1e6;
+    /// @dev Human USD target for Basic NFT stake; scaled by pricing USDC decimals when configured.
+    uint256 private constant BASIC_NFT_TARGET_USDC_HUMAN = 25;
     /// @dev Minimum `now - start` for pool TWAP pricing (end is always `now` / current cumulative).
     uint256 public constant BASIC_NFT_TWAP_MIN_WINDOW = 1 days;
     /// @dev When `now - start` exceeds this, the stored start slides forward so the TWAP window never grows unbounded.
@@ -69,6 +80,10 @@ contract TCGVaultStakingVault is ERC4626, Ownable2Step {
     address private _basicNFTPricingRouter;
     /// @notice USDC token for dynamic Basic NFT threshold quotes.
     address private _basicNFTPricingUsdc;
+    /// @notice `BASIC_NFT_TARGET_USDC_HUMAN * 10**usdc.decimals()` when dynamic pricing is configured.
+    uint256 private _basicNftTargetUsdc;
+    /// @notice Deposited asset accounting — ignores unsolicited ERC-20 transfers.
+    uint256 private _trackedAssets;
     /// @notice Start of TWAP window (`price0` cumulative snapshot time) when dynamic pricing is active.
     uint32 private _basicNFTPricingTwapAnchorTs;
     /// @notice `price0CumulativeLast` at `_basicNFTPricingTwapAnchorTs` (set with the pricing router).
@@ -79,6 +94,7 @@ contract TCGVaultStakingVault is ERC4626, Ownable2Step {
     event BasicNFTPricingRouterUpdated(address buyRouter, address usdc);
     event BasicNFTPricingTwapAnchorSet(address pair, uint32 anchorTimestamp, uint256 price0Cumulative);
     event BasicNFTPricingTwapWindowSlid(uint32 newStartTimestamp, uint256 newStartPrice0Cumulative);
+    event UnsolicitedAssetsRecovered(address to, uint256 amount);
 
     // External getters (private/external pattern)
     function requiredStakeForBasicNFT() external view returns (uint256) {
@@ -108,6 +124,26 @@ contract TCGVaultStakingVault is ERC4626, Ownable2Step {
     {
     }
 
+    /// @inheritdoc ERC4626
+    /// @dev Uses tracked deposits only so plain ERC-20 transfers cannot inflate the exchange rate.
+    function totalAssets() public view virtual override returns (uint256) {
+        return _trackedAssets;
+    }
+
+    /**
+     * @notice Recover TCGV sent to the vault outside {deposit}/{mint}.
+     * @dev Surplus = `balanceOf(vault) - _trackedAssets`. Does not touch deposited stake.
+     */
+    function recoverUnsolicitedAssets(address to) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        uint256 balance = IERC20(asset()).balanceOf(address(this));
+        uint256 tracked = _trackedAssets;
+        if (balance <= tracked) revert NoUnsolicitedAssets();
+        uint256 amount = balance - tracked;
+        IERC20(asset()).safeTransfer(to, amount);
+        emit UnsolicitedAssetsRecovered(to, amount);
+    }
+
     function setRequiredStakeForBasicNFT(uint256 requiredShares) external onlyOwner {
         _requiredStakeForBasicNFT = requiredShares;
         emit RequiredStakeForBasicNFTUpdated(requiredShares);
@@ -129,6 +165,7 @@ contract TCGVaultStakingVault is ERC4626, Ownable2Step {
         if (buyRouter_ == address(0)) {
             _basicNFTPricingRouter = address(0);
             _basicNFTPricingUsdc = address(0);
+            _basicNftTargetUsdc = 0;
             _resetBasicNFTPricingTwapAnchor();
             emit BasicNFTPricingRouterUpdated(address(0), address(0));
             return;
@@ -138,8 +175,11 @@ contract TCGVaultStakingVault is ERC4626, Ownable2Step {
         address usdc_ = router_.usdc();
         address factory_ = router_.factory();
         if (tcgv_ != asset() || usdc_ == address(0) || factory_ == address(0)) revert InvalidPricingSource();
+        uint8 d = IERC20Metadata(usdc_).decimals();
+        if (d > 18) revert UnsupportedStableDecimals(d);
         _basicNFTPricingRouter = buyRouter_;
         _basicNFTPricingUsdc = usdc_;
+        _basicNftTargetUsdc = BASIC_NFT_TARGET_USDC_HUMAN * (10 ** uint256(d));
         address pair = IPancakeFactory(factory_).getPair(asset(), usdc_);
         _captureBasicNFTPricingTwapAnchor(pair);
         emit BasicNFTPricingRouterUpdated(buyRouter_, usdc_);
@@ -244,8 +284,8 @@ contract TCGVaultStakingVault is ERC4626, Ownable2Step {
         address token0 = IPancakePair(pair).token0();
         uint256 q112 = uint256(1) << 112;
         uint256 requiredAssets = token0 == asset()
-            ? Math.mulDiv(BASIC_NFT_TARGET_USDC, q112, avgPerSec, Math.Rounding.Ceil)
-            : Math.mulDiv(BASIC_NFT_TARGET_USDC, avgPerSec, q112, Math.Rounding.Ceil);
+            ? Math.mulDiv(_basicNftTargetUsdc, q112, avgPerSec, Math.Rounding.Ceil)
+            : Math.mulDiv(_basicNftTargetUsdc, avgPerSec, q112, Math.Rounding.Ceil);
 
         uint256 requiredShares = super.previewDeposit(requiredAssets);
         return requiredShares == 0 ? fallbackRequired : requiredShares;
@@ -384,6 +424,8 @@ contract TCGVaultStakingVault is ERC4626, Ownable2Step {
         if (shares == 0) revert ZeroSharesDeposit();
         uint256 requiredStake = _currentRequiredStakeForBasicNFT();
         if (requiredStake > 0 && balanceOf(receiver) + shares != requiredStake) revert ExactStakeRequired(requiredStake);
+        // CEI: update tracked assets before ERC-20 transfer in `super._deposit` (hooks / reentrancy).
+        _trackedAssets += assets;
         super._deposit(caller, receiver, assets, shares);
         if (_basicNFTContract != address(0) && requiredStake > 0 && balanceOf(receiver) >= requiredStake) {
             ITCGVaultBasicNFT(_basicNFTContract).mintFor(receiver);
@@ -398,7 +440,10 @@ contract TCGVaultStakingVault is ERC4626, Ownable2Step {
         uint256 shares
     ) internal virtual override {
         if (ITCGVaultToken(asset()).isBlacklisted(owner)) revert BlacklistedOwner();
+        if (ITCGVaultToken(asset()).isPair(receiver)) revert ReceiverIsPair();
         if (shares != balanceOf(owner)) revert FullUnstakeOnly();
+        // CEI: decrement before `super._withdraw` burns shares and transfers assets (OZ transfers after burn).
+        _trackedAssets -= assets;
         super._withdraw(caller, receiver, owner, assets, shares);
         uint256 requiredStake = _currentRequiredStakeForBasicNFT();
         if (_basicNFTContract != address(0) && requiredStake > 0 && balanceOf(owner) < requiredStake) {

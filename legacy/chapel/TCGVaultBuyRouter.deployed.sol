@@ -6,9 +6,9 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ITCGVaultToken} from "./interfaces/ITCGVaultToken.sol";
-import {ITCGRToken} from "./interfaces/ITCGRToken.sol";
-import {IPancakeFactory, IPancakePair, IPancakeRouter02} from "./interfaces/IPancakeV2.sol";
+import {ITCGVaultToken} from "../contracts/interfaces/ITCGVaultToken.sol";
+import {ITCGRToken} from "../contracts/interfaces/ITCGRToken.sol";
+import {IPancakeFactory, IPancakePair, IPancakeRouter02} from "../contracts/interfaces/IPancakeV2.sol";
 
 /// @notice Sent when buying with zero USDC.
 error ZeroUSDC();
@@ -27,12 +27,11 @@ error NoFeesToClaim();
 
 /**
  * @title TCGVaultBuyRouter
- * @notice **Routeur ON (portail / USDC)** — achat et vente du $TCGV contre USDC. Frais distincts du **routeur OFF** (taxes paire en TCGV sur `TCGVaultToken`).
- * @dev **Achat :** **5%** de l’USDC entrant (**3%** vault, **2%** structure), le reste est swappé en TCGV ; pas de burn TCGV. Puis `recordBuyAndMintCashback` sur le token pour **$TCGNEXUS** (**30%** prévente / **10%** standard du montant TCGV reçu — whitepaper §6).
- * @dev **Vente :** **4%** sur l’USDC reçu après swap (**1,5%** vault, **1%** liquidité, **1%** communauté, **0,5%** structure) ; pas de burn TCGV en entrée.
- * @dev **Parrainage :** si `referralToken` (TCGR) est configuré, `processValidatedBuy` peut créditer le parrain (**0,5%** du buy validé, whitepaper).
- * @dev Exclu des frais sur `TCGVaultToken` (évite double taxation avec le chemin paire). Taux cashback = `TCGVaultToken.presaleActive` / constantes du token.
- *      Utilise {ReentrancyGuardTransient} (EIP-1153) ; chaîne compatible stockage transient (Cancun+).
+ * @notice Buy and sell TCGV against USDC (stablecoin). Buy: 5% USDC fee (3% vault, 2% structure), then swap remaining USDC for TCGV; no TCGV burn. User receives TCGV + NEXUS cashback (30% presale, 10% standard — whitepaper §6).
+ *         Sell: 4% fee on USDC received (1.5% vault, 1% liquidity, 1% community, 0.5% structure); no TCGV burn on input.
+ *         Referral: TCGR enregistre le parrain une fois par filleul; chaque achat validé via ce routeur appelle TCGR.processValidatedBuy (0,5 % au parrain, whitepaper).
+ * @dev This contract is excluded from fees in TCGVaultToken. Cashback rate is determined by TCGVaultToken (presaleActive).
+ *      Uses {ReentrancyGuardTransient} (EIP-1153) for buy/sell entrypoints; requires a chain that supports transient storage.
  */
 contract TCGVaultBuyRouter is Ownable2Step, ReentrancyGuardTransient {
     using SafeERC20 for IERC20;
@@ -139,13 +138,16 @@ contract TCGVaultBuyRouter is Ownable2Step, ReentrancyGuardTransient {
     /**
      * @notice Update buy fee parameters (router mode).
      * @dev `vaultBp + marketingBp + communityBp` is taken from USDC in before swap.
-     *      Each leg is capped only by `MAX_BUY_TOTAL_BP` on the sum (individual legs may be raised again after being lowered).
+     *      Monotonic policy: each leg may only stay the same or decrease.
      */
     function setBuyFeeParams(
         uint256 vaultBp,
         uint256 marketingBp,
         uint256 communityBp
     ) external onlyOwner {
+        if (vaultBp > _buyVaultBp || marketingBp > _buyMarketingBp || communityBp > _buyCommunityBp) {
+            revert InvalidFeeParams();
+        }
         if (vaultBp + marketingBp + communityBp > MAX_BUY_TOTAL_BP) revert InvalidFeeParams();
         _buyVaultBp = vaultBp;
         _buyMarketingBp = marketingBp;
@@ -164,7 +166,8 @@ contract TCGVaultBuyRouter is Ownable2Step, ReentrancyGuardTransient {
         uint256 marketingShareBp,
         uint256 communityShareBp
     ) external onlyOwner {
-        if (taxBp > MAX_SELL_TAX_BP) revert InvalidFeeParams();
+        // Monotonic fee policy: sell tax may only stay the same or decrease.
+        if (taxBp > _sellTaxBp || taxBp > MAX_SELL_TAX_BP) revert InvalidFeeParams();
         if (vaultShareBp + autolpShareBp + marketingShareBp + communityShareBp != 10000) {
             revert InvalidFeeParams();
         }
@@ -204,33 +207,6 @@ contract TCGVaultBuyRouter is Ownable2Step, ReentrancyGuardTransient {
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = reserveIn * 10000 + amountInWithFee;
         amountOut = numerator / denominator;
-    }
-
-    /**
-     * @notice Swap an exact input amount along `path` (does not consume pair surplus).
-     * @dev Used for USDC→TCGV buys where the router already transferred exactly `amountIn` to the first pair.
-     */
-    function _swapExactInput(address[] memory path, uint256 amountIn, address _to) internal {
-        for (uint256 i; i < path.length - 1; i++) {
-            (address input, address output) = (path[i], path[i + 1]);
-            (address token0,) = input < output ? (input, output) : (output, input);
-            IPancakePair pair = IPancakePair(_pairFor(input, output));
-
-            uint256 amountOutput;
-            {
-                (uint256 reserveInput, uint256 reserveOutput) = _getReserves(input, output);
-                amountOutput = _getAmountOut(amountIn, reserveInput, reserveOutput);
-            }
-            (uint256 amount0Out, uint256 amount1Out) = input == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
-            address to = i < path.length - 2 ? _pairFor(output, path[i + 2]) : _to;
-            pair.swap(amount0Out, amount1Out, to, "");
-            if (i < path.length - 2) {
-                // Multi-hop: next hop input is whatever landed on the intermediate pair (FoT-safe for intermediates).
-                address nextPair = _pairFor(output, path[i + 2]);
-                (uint256 nextReserveIn,) = _getReserves(output, path[i + 2]);
-                amountIn = IERC20(output).balanceOf(nextPair) - nextReserveIn;
-            }
-        }
     }
 
     /**
@@ -308,8 +284,8 @@ contract TCGVaultBuyRouter is Ownable2Step, ReentrancyGuardTransient {
         // Record balance before swap
         uint256 balanceBefore = _tcgv.balanceOf(address(this));
 
-        // Execute swap for exactly `swapAmount` (ignore any USDC donated to the pair).
-        _swapExactInput(path, swapAmount, address(this));
+        // Execute swap directly with pair
+        _swapSupportingFeeOnTransferTokens(path, address(this));
 
         // Verify minimum output
         uint256 balanceAfter = _tcgv.balanceOf(address(this));
