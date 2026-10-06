@@ -18,7 +18,7 @@ Description **factuelle** du comportement actuel des smart contracts dans ce dé
 
 - **500** exemplaires : **245 + 245** payants (200 / 350 USDC) + **10** réserve stratégique (`mintStrategicReserve`, sans USDC ni bonus NEXUS).
 - Déclenchement vague 2 : `wave2StartTimestamp` est fixé au **premier mint payant + 7 jours** (`WAVE1_DURATION`), avec bascule anticipée si les 245 de vague 1 sont vendus avant l’échéance.
-- Répartition USDC à chaque mint payant : **30 %** vault / **60 %** liquidité / **10 %** ops (arrondis vers ops si besoin).
+- USDC à chaque mint payant : **100 %** vers `caspUsdcRecipient` (pas de split on-chain vault/liquidité/ops).
 - L’acheteur reçoit **30 %** du prix en **NEXUS** (calcul dans le contrat).
 
 ## Prévente token (`TCGVaultInitialLaunch`)

@@ -53,7 +53,11 @@ async function runQueuedVerifications(jobs: VerifyJob[]): Promise<void> {
 }
 
 /**
- * Deployment script for TCG Vault Token contracts
+ * LEGACY / PARTIAL deployment — NEXUS + TCGV + BuyRouter only.
+ *
+ * For BSC mainnet full stack (Founder NFT, InitialLaunch, staking, LiquidityWrapper, TCGR),
+ * use `yarn deploy:bsc` → scripts/deployBscMainnet.ts (see docs/MAINNET_DEPLOYMENT.md).
+ * This script remains as `yarn deploy:bsc:legacy-partial` for non-mainnet / partial wiring.
  *
  * Initial allocation (whitepaper §5): 60% Presale, 20% Liquidité, 4% Vesting & Équipe,
  * 5% Opérationnel & Marketing (immédiat), 11% Opérationnel & Marketing (vesting).
@@ -69,7 +73,7 @@ async function runQueuedVerifications(jobs: VerifyJob[]): Promise<void> {
  *   - VAULT_ADDRESS: Vault address for fee collection (required)
  *   - MARKETING_ADDRESS: Marketing address (required)
  *   - COMMUNITY_ADDRESS: Community rewards address (required)
- *   - STABLECOIN_ADDRESS: Stablecoin address (USDT/USDC). If omitted, deploy MockUSDC.
+ *   - STABLECOIN_ADDRESS: Stablecoin address (USDT/USDC). Required on chainId 56 (MockUSDC refused).
  *   - PRESALE_FINALIZER: TCGVaultInitialLaunch address (immutable `initialLaunch`; mintPresale / finalize / burnPresaleAllocation) (required)
  *   - NEXUS_PRESALE_BONUS_FOUNDER_NFT, NEXUS_PRESALE_BONUS_INITIAL_LAUNCH: Immutable NEXUS presale bonus contracts (CREATE-predicted addresses) (required)
  *   - MOCK_USDC_MINT_DEPLOYER=0: if deploying MockUSDC, skip minting 1M USDC to deployer
@@ -119,7 +123,14 @@ async function main() {
     );
     return;
   }
+  const chainId = await publicClient.getChainId();
   if (!stablecoinAddress) {
+    if (chainId === 56) {
+      console.error(
+        "Missing STABLECOIN_ADDRESS on BSC mainnet. MockUSDC is refused. Use yarn deploy:bsc (deployBscMainnet.ts) instead.",
+      );
+      process.exit(1);
+    }
     console.log("\n0. Deploying MockUSDC (no STABLECOIN_ADDRESS provided)...");
     const mockUsdc = await viem.deployContract("contracts/test/MockUSDC.sol:MockUSDC", [], {
       client: { wallet: deployer },

@@ -115,11 +115,16 @@ export default defineConfig({
       gasMultiplier: 1.15,
       accounts: [configVariable("TCG_KEY")],
     },
+    // Tenderly Virtual TestNet for BSC (NOT production).
+    // VNets often use a custom chainId (this project: 99956). Override with TENDERLY_CHAIN_ID.
+    // For live BSC deploy use network `bsc` + BSC_RPC_URL.
     tenderly: {
       type: "http",
       chainType: "l1",
       url: configVariable("TENDERLY_RPC_URL"),
-      chainId: 1,
+      chainId: process.env.TENDERLY_CHAIN_ID?.trim()
+        ? Number(process.env.TENDERLY_CHAIN_ID.trim())
+        : 99956,
       gasPrice: "auto",
       accounts: [configVariable("TCG_KEY")],
     },

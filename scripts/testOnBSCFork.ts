@@ -32,7 +32,7 @@ import {
 
 const PANCAKE_ROUTER = "0x10ED43C718714eb63d5aA57B78B54704E256024E" as Address;
 const PANCAKE_FACTORY = "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73" as Address;
-/** BSC USDC (BEP20). 6 decimals. */
+/** BSC Binance-Peg USDC (BEP20). 18 decimals on mainnet — fork helpers still use 1e6 unit constants for compare amounts where noted. */
 const BSC_USDC = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d" as Address;
 const BSC_USDC_BALANCES_SLOT = 1;
 const USDC_6 = 1_000_000n;

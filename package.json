@@ -14,13 +14,19 @@
     "deploy:local": "hardhat run scripts/deployTCGVault.ts --network localhost",
     "deploy:gnosis": "hardhat run scripts/deployTCGVault.ts --network gnosis",
     "deploy:sepolia": "hardhat run scripts/deployTCGVault.ts --network sepolia",
-    "deploy:bsc": "hardhat run scripts/deployTCGVault.ts --network bsc",
+    "deploy:bsc": "hardhat run scripts/deployBscMainnet.ts --network bsc",
+    "deploy:bsc:tenderly": "hardhat run scripts/deployBscMainnet.ts --network tenderly",
+    "deploy:bsc:legacy-partial": "hardhat run scripts/deployTCGVault.ts --network bsc",
+    "preflight:bsc": "hardhat run scripts/preflightBscMainnet.ts --network bsc",
+    "preflight:bsc:tenderly": "hardhat run scripts/preflightBscMainnet.ts --network tenderly",
+    "dryrun:bsc-env": "hardhat run scripts/dryRunBscMainnetEnv.ts --network hardhat",
     "deploy:bsctest": "hardhat run scripts/deployBscTestnet.ts --network bsctest",
     "verify:bsctest": "hardhat run scripts/verifyBsctestFromSubgraph.ts --network bsctest",
     "verify:bsctest:buyrouter": "hardhat run scripts/verifyBsctestBuyRouterDeployed.ts --network bsctest",
     "fork:full": "hardhat run scripts/testFullFlowOnBSCFork.ts --network hardhat",
     "fork:dex": "hardhat run scripts/testOnBSCFork.ts --network hardhat",
-    "update:subgraph:abis": "node scripts/update-subgraph-abis.mjs"
+    "update:subgraph:abis": "node scripts/update-subgraph-abis.mjs",
+    "wallet:generate": "hardhat run scripts/generateEthWallet.ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.8",

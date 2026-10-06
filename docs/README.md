@@ -11,6 +11,8 @@ This directory contains the ERC20 token contracts for the TCG Vault ecosystem an
 | [**PRODUCT_LIFECYCLE.md**](PRODUCT_LIFECYCLE.md) | Product phases as implemented (Founder NFT, Initial Launch, trading, staking). |
 | [**IMPLEMENTATION_NOTES_FR.md**](IMPLEMENTATION_NOTES_FR.md) | French: same implementation facts (fees, presale, NFTs). |
 | [**WALLET_ADDRESSES.md**](WALLET_ADDRESSES.md) | `.env` variable ↔ wallet role mapping for deploy scripts. |
+| [**ADRESSES_DEPLOIEMENT_MAINNET.md**](ADRESSES_DEPLOIEMENT_MAINNET.md) | Adresses mainnet figées (Livre Blanc Annexe 2) + mapping `.env`. |
+| [**MAINNET_DEPLOYMENT.md**](MAINNET_DEPLOYMENT.md) | BSC mainnet preflight, full-stack deploy, post-deploy ops, refund SOP. |
 
 ---
 
@@ -85,6 +87,16 @@ NEXUS is **immutable** on `TCGVaultToken` (constructor arg). `TCGNexusToken` nee
    token.setBuyRouter(address(buyRouter));
    ```
    Users who buy via `buyTCGVWithUSDC` pay the router’s **USDC** fee, receive **100%** of swapped TCGV (no burn), and get NEXUS cashback per token rules.
+
+### BSC Mainnet (chainId 56)
+
+Runbook: [**MAINNET_DEPLOYMENT.md**](MAINNET_DEPLOYMENT.md).
+
+- Preflight: `yarn preflight:bsc` (read-only env / USDC / Pancake checks).
+- Deploy: `yarn deploy:bsc` → `scripts/deployBscMainnet.ts` (`BSC_RPC_URL` + `TCG_KEY`).
+- PancakeSwap V2 mainnet **factory** `0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73`, **router** `0x10ED43C718714eb63d5aA57B78B54704E256024E`.
+- **USDC:** `USDC_ADDRESS` is **required**; MockUSDC is refused. Confirm `decimals()` on the chosen BEP-20 (contracts scale from metadata).
+- Do **not** use `yarn deploy:bsc:legacy-partial` for production (partial stack only).
 
 ### BSC Testnet (chainId 97)
 

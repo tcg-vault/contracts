@@ -19,7 +19,7 @@ Numeric defaults, mutability (`ADMIN_ROLE`, router `onlyOwner`), caps (`TCGVault
 1. **Founder NFT sale (500 units)**  
    - **490** mints payants : vague 1 **245** × **200 USDC** (7 jours depuis le premier mint payant), puis vague 2 **245** × **350 USDC** (ou bascule anticipée si les 245 de vague 1 sont vendus).  
    - **10** NFT « réserve stratégique » : `mintStrategicReserve` (owner, sans USDC ni bonus NEXUS).  
-   - Chaque mint payant : USDC **30%** vault / **60%** liquidité / **10%** ops (arrondis vers ops si besoin).  
+   - Chaque mint payant : **100%** of USDC is transferred to `caspUsdcRecipient` (`CASP_USDC_ADDRESS`); there is no on-chain 30/60/10 split to vault/liquidity/ops.  
    - L’acheteur reçoit **30%** du prix en NEXUS (18 décimales ; `TCGVaultFounderNFT`).
 
 2. **Token presale (Initial Launch)**  
