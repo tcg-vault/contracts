@@ -19,6 +19,8 @@
     "deploy:bsc:legacy-partial": "hardhat run scripts/deployTCGVault.ts --network bsc",
     "preflight:bsc": "hardhat run scripts/preflightBscMainnet.ts --network bsc",
     "preflight:bsc:tenderly": "hardhat run scripts/preflightBscMainnet.ts --network tenderly",
+    "migrate:bsc-wallets": "hardhat run scripts/migrateMainnetWalletRecipients.ts --network bsc",
+    "migrate:bsc-wallets:dry": "DRY_RUN=1 hardhat run scripts/migrateMainnetWalletRecipients.ts --network bsc",
     "dryrun:bsc-env": "hardhat run scripts/dryRunBscMainnetEnv.ts --network hardhat",
     "deploy:bsctest": "hardhat run scripts/deployBscTestnet.ts --network bsctest",
     "verify:bsctest": "hardhat run scripts/verifyBsctestFromSubgraph.ts --network bsctest",
