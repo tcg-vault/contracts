@@ -60,14 +60,15 @@ Complete reference for **BSC mainnet (prod)** and **BSC testnet (chapel)**.
 
 | NFT | `setBaseURI` value |
 |---|---|
-| Founder | `ipfs://bafybeiekepmukv7ipibpxyb46jsormteczxu22epbyh35vebf45duzgnw4/founder/` |
+| Founder | `ipfs://bafybeihc5paec3djiq5bwqcjqzpl4n6yltrs3qjyfq26lo6hprvt4mlbwa/founder/` |
 | Basic | `https://metadata.tcg-vault.io/basic/` |
 
 Resolved examples (after a token is minted):
 
-- Founder `tokenURI(0)` → `ipfs://bafybeiekepmukv7ipibpxyb46jsormteczxu22epbyh35vebf45duzgnw4/founder/0`
-- Basic `tokenURI(0)` → `https://metadata.tcg-vault.io/basic/0`
+- Founder `tokenURI(0)` → `ipfs://bafybeihc5paec3djiq5bwqcjqzpl4n6yltrs3qjyfq26lo6hprvt4mlbwa/founder/0` → **Founder #0**
+- Basic `tokenURI(0)` → `https://metadata.tcg-vault.io/basic/0` → **Basique #0**
 
+> Display `#N` / trait `Numéro` match on-chain `tokenId` (including `0`).  
 > `tokenURI` reverts until that `tokenId` exists (OpenZeppelin ERC-721).
 
 ### Basic NFT stake threshold
@@ -117,7 +118,7 @@ Same as prod:
 
 | NFT | `setBaseURI` value |
 |---|---|
-| Founder | `ipfs://bafybeiekepmukv7ipibpxyb46jsormteczxu22epbyh35vebf45duzgnw4/founder/` |
+| Founder | `ipfs://bafybeihc5paec3djiq5bwqcjqzpl4n6yltrs3qjyfq26lo6hprvt4mlbwa/founder/` |
 | Basic | `https://metadata.tcg-vault.io/basic/` |
 
 ---
@@ -131,7 +132,7 @@ Same as prod:
     "testnet": "https://api.goldsky.com/api/public/project_cmmy4l6c3g8oy01t5berz7ioa/subgraphs/tcg-vault/testnet/gn"
   },
   "metadata": {
-    "founderBaseURI": "ipfs://bafybeiekepmukv7ipibpxyb46jsormteczxu22epbyh35vebf45duzgnw4/founder/",
+    "founderBaseURI": "ipfs://bafybeihc5paec3djiq5bwqcjqzpl4n6yltrs3qjyfq26lo6hprvt4mlbwa/founder/",
     "basicBaseURI": "https://metadata.tcg-vault.io/basic/"
   },
   "prod": {
