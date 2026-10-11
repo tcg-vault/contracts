@@ -113,7 +113,12 @@ export default defineConfig({
         ? BigInt(process.env.BSCTEST_GAS_PRICE_WEI.trim())
         : 11_000_000_000n,
       gasMultiplier: 1.15,
-      accounts: [configVariable("TCG_KEY")],
+      // Prefer TCG_KEY_TESTNET (chapel deployer); fall back to TCG_KEY if unset.
+      accounts: [
+        process.env.TCG_KEY_TESTNET?.trim()
+          ? configVariable("TCG_KEY_TESTNET")
+          : configVariable("TCG_KEY"),
+      ],
     },
     // Tenderly Virtual TestNet for BSC (NOT production).
     // VNets often use a custom chainId (this project: 99956). Override with TENDERLY_CHAIN_ID.
