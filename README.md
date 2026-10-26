@@ -73,9 +73,10 @@ Absolute caps:
 Constraints:
 
 - In token buy/sell split setters, shares must sum to `10000`.
-- In token buy/sell setters, tax must be <= contract-specific cap and cannot increase versus current on-chain value.
-- In router buy setter, total buy fee (`vault + marketing + community`) must be <= `MAX_BUY_TOTAL_BP` and cannot increase.
-- In router sell setter, sell split shares must sum to `10000` and tax must be <= `MAX_SELL_TAX_BP` and cannot increase.
+- In token buy/sell setters, tax must be <= the contract-specific immutable cap (`MAX_BUY_TAX_BP` / `MAX_SELL_TAX_BP`). The cap is the only on-chain bound: a rate lowered below the cap can technically be set again up to the cap (this avoids permanently locking fees after a mistaken zero).
+- In router buy setter, total buy fee (`vault + marketing + community`) must be <= `MAX_BUY_TOTAL_BP`.
+- In router sell setter, sell split shares must sum to `10000` and tax must be <= `MAX_SELL_TAX_BP`.
+- Commitment of the issuer: within these hard-coded ceilings, TCG-VAULT contractually commits, in its Terms of Use and white paper, never to raise the contribution rates; any change goes through the Gnosis Safe multisig that holds the admin roles. This commitment is contractual, not an on-chain lock.
 
 ## Notes
 
