@@ -1,6 +1,8 @@
 # Hacken Second Review — Non-Fixed Findings Resolution Report
 
-**Source:** Hacken SCA Second Review Report (08/09/2026), updated final commit `7e785d4`  
+> **Active audit reference (updated):** Hacken final report dated **24 September 2026**, audited commit **`dd5b374`** (the code deployed on BNB Chain). The dispositions below were made during the second-review pass and are confirmed by the final report; the earlier reference (second review of 08/09/2026, commit `7e785d4`) is kept here for history only and is no longer the active reference.
+
+**Source:** Hacken SCA Second Review Report (08/09/2026), updated final commit `7e785d4` (superseded, see note above)  
 **Date:** 2026-09-12  
 **Scope of this pass:** resolve Pending Fix items (except F-2026-19267 Accepted); keep Mitigated/Accepted dispositions
 
